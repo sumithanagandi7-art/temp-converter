@@ -326,7 +326,8 @@
       font-weight: 400;
       transition: var(--transition);
       outline: none;
-      -webkit-appearance: none;
+       appearance: none;
+       -webkit-appearance: none;
     }
     [data-theme="light"] input,
     [data-theme="light"] select {
@@ -1124,41 +1125,72 @@
       convertBtn.classList.add('loading');
       resultPanel.classList.remove('show');
 
+      
       try {
-        // Call the Express backend API
-        const response = await fetch('/api/convert', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ value: numVal, fromUnit: from, toUnit: to }),
-        });
+        // Frontend-only conversion logic (No backend needed)
 
-        const data = await response.json();
+        let conv;
+        let formula = "";
 
-        if (!response.ok || !data.success) {
-          showError(data.message || 'Conversion failed.');
-          showToast(data.message || 'Conversion failed', 'error');
-          return;
+        if (from === to) {
+          conv = numVal;
+          formula = "Same unit conversion";
         }
 
-        // Show result
-        const conv = data.converted.value;
-        const convDisplay = Number.isInteger(conv) ? conv : parseFloat(conv.toFixed(4));
+        // Celsius conversions
+        else if (from === "C" && to === "F") {
+          conv = (numVal * 9/5) + 32;
+          formula = "(°C × 9/5) + 32";
+        }
+        else if (from === "C" && to === "K") {
+          conv = numVal + 273.15;
+          formula = "°C + 273.15";
+        }
+
+        // Fahrenheit conversions
+        else if (from === "F" && to === "C") {
+          conv = (numVal - 32) * 5/9;
+          formula = "(°F - 32) × 5/9";
+        }
+        else if (from === "F" && to === "K") {
+          conv = ((numVal - 32) * 5/9) + 273.15;
+          formula = "((°F - 32) × 5/9) + 273.15";
+        }
+
+        // Kelvin conversions
+        else if (from === "K" && to === "C") {
+          conv = numVal - 273.15;
+          formula = "K - 273.15";
+        }
+        else if (from === "K" && to === "F") {
+          conv = ((numVal - 273.15) * 9/5) + 32;
+          formula = "((K - 273.15) × 9/5) + 32";
+        }
+
+        const convDisplay = Number.isInteger(conv)
+          ? conv
+          : parseFloat(conv.toFixed(4));
+
         const unitSym = { C:'°C', F:'°F', K:'K' };
 
-        resultValue.textContent  = convDisplay;
-        resultUnit.textContent   = unitLabels[data.converted.unit];
-        resultFormula.textContent = data.formula;
+        resultValue.textContent = convDisplay;
+        resultUnit.textContent = unitLabels[to];
+        resultFormula.textContent = formula;
+
         resultPanel.classList.add('show');
 
-        // Input highlight
         tempInput.classList.add('success-input');
 
-        // Update thermometer with result celsius value
+        // Update thermometer
         updateVisuals(toCelsius(conv, to));
 
-        // Add to history
+        // Add history
         const now = new Date();
-        const timeStr = now.toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
+        const timeStr = now.toLocaleTimeString([], {
+          hour:'2-digit',
+          minute:'2-digit'
+        });
+
         addHistory({
           orig: numVal,
           rawOrig: rawVal,
@@ -1170,13 +1202,15 @@
           time: timeStr,
         });
 
-        // Micro-interaction: subtle result pulse
+        // Animation
         resultValue.style.transform = 'scale(1.06)';
         setTimeout(() => resultValue.style.transform = '', 300);
 
-        showToast(`${numVal}${unitSym[from]} = ${convDisplay}${unitSym[to]}`, 'success');
-
-      } catch (err) {
+        showToast(
+          `${numVal}${unitSym[from]} = ${convDisplay}${unitSym[to]}`,
+          'success'
+        );
+} catch (err) {
         showError('Could not reach the server. Is it running?');
         showToast('Server error — check connection', 'error');
       } finally {
